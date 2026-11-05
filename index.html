@@ -28,13 +28,13 @@
             <span class="brand-subtitle">SIGNATURE BY TAMORIX</span>
         </a>
 
-        <nav class="navigation" aria-label="Main navigation">
-            <a href="#experience">Experience</a>
-            <a href="#equalizer">Equalizer</a>
-            <a href="#presets">Presets</a>
-        </nav>
+       <nav class="navigation" aria-label="Main navigation">
+    <a href="#experience">Experience</a>
+    <a href="studio.html" target="_blank" rel="noopener noreferrer">Equalizer</a>
+    <a href="studio.html" target="_blank" rel="noopener noreferrer">Presets</a>
+</nav>
 
-        <a class="header-button" href="#equalizer">Enter Studio ↗</a>
+        <a class="header-button" href="studio.html" target="_blank" rel="noopener">Enter Studio ↗</a>
     </header>
 
     <main>
@@ -52,9 +52,9 @@
                 </p>
 
                 <div class="hero-actions">
-                    <a class="primary-button" href="#equalizer">
-                        Explore The Equalizer ↗
-                    </a>
+                <a class="primary-button" href="studio.html" target="_blank" rel="noopener noreferrer">
+    ENTER STUDIO ↗
+</a>
                     <a class="secondary-button" href="#experience">
                         Discover Our Sound
                     </a>
@@ -83,49 +83,35 @@
             <h2>More than equalization.<br>
                 <span>A signature of your own.</span>
             </h2>
+<div class="intro-eq-logo" aria-label="RawsoniEQ waveform logo">
+    <svg viewBox="0 0 240 80" fill="none"
+         xmlns="http://www.w3.org/2000/svg">
+        <path
+            d="M5 40 H35 C45 40 45 18 55 18
+               C65 18 65 62 75 62
+               C85 62 85 8 100 8
+               C115 8 115 72 130 72
+               C145 72 145 8 160 8
+               C175 8 175 62 185 62
+               C195 62 195 40 205 40 H235"
+            stroke="url(#eqGradient)"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"/>
+        <defs>
+            <linearGradient id="eqGradient" x1="5" y1="0" x2="235" y2="80">
+                <stop stop-color="#65E6AD"/>
+                <stop offset="0.5" stop-color="#F0F5F2"/>
+                <stop offset="1" stop-color="#65E6AD"/>
+            </linearGradient>
+        </defs>
+    </svg>
+</div>
             <p>
                 Explore sound, discover tonal character, and create a listening
                 experience that feels uniquely yours.
             </p>
         </section>
-
-        <section class="studio-section" id="equalizer">
-            <div class="section-heading">
-                <div>
-                    <p class="eyebrow">YOUR PERSONAL AUDIO STUDIO</p>
-                    <h2>RawsoniEQ <span>Studio</span></h2>
-                </div>
-                <span class="status-label">STUDIO INTERFACE — COMING ONLINE</span>
-            </div>
-
-            <div class="studio-placeholder">
-                <div class="placeholder-icon">〰</div>
-                <h3>Your sound. Your control.</h3>
-                <p>
-                    The equalizer, audio playback, custom tuning, and export
-                    engine will be built here.
-                </p>
-                <p class="placeholder-note">
-                    Audio processing is not connected yet.
-                </p>
-            </div>
-        </section>
-
-        <section class="presets-section" id="presets">
-            <p class="eyebrow">CRAFTED BY TAMORIX</p>
-            <h2>Discover Your <span>Sound.</span></h2>
-            <p>
-                Signature presets and custom tonal profiles will live here.
-            </p>
-        </section>
-
-<section class="export-section">
-    <h2>Export Your Signature Sound</h2>
-    <p>Download your audio with your customized EQ settings.</p>
-    <button id="exportWavBtn" type="button">
-        Export WAV
-    </button>
-</section>
 
     </main>
 
@@ -140,5 +126,3 @@
 
 <script src="Js/audio-engine.js"></script>
 <script src="Js/studio.js"></script>
-</body>
-</html>
