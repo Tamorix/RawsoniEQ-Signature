@@ -190,7 +190,7 @@ async downloadWav() {
                 this.bindInterface();
         this.renderBands();
         this.renderSpatialPositioner();
-        this.updatePlaybackStatus("Import an audio file to begin");s
+        this.updatePlaybackStatus("Import an audio file to begin");
     }
 
     bindInterface() {
