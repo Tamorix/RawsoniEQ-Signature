@@ -9,7 +9,7 @@
 
     <title>RawsoniEQ Studio | TAMORIX</title>
 
-<link rel="stylesheet" href="Css/style.css">
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <header class="site-header">
@@ -27,9 +27,54 @@
         <h1>RawsoniEQ Studio</h1>
         <p>Shape your sound. Create your signature.</p>
 
-        <div class="studio-placeholder"></div>
-    </main>
+       
+<div class="studio-placeholder">
 
+    <!-- RawsoniEQ Spatial Studio -->
+    <section class="spatial-studio" id="spatial-studio">
+
+        <header class="spatial-header">
+            <div>
+                <h2>Spatial Studio</h2>
+                <p>Position. Route. Shape your sound.</p>
+            </div>
+            <span class="spatial-status">SPATIAL ENGINE</span>
+        </header>
+
+        <div class="spatial-workspace">
+
+            <section class="spatial-positioner">
+                <h3>3D Sound Positioner</h3>
+                <div class="spatial-positioner-view" id="spatial-positioner">
+                    <!-- 3D Positioning Interface -->
+                </div>
+            </section>
+
+            <section class="spatial-tracks">
+                <h3>Audio Sources</h3>
+                <div id="spatial-track-list">
+                    <!-- Audio Tracks -->
+                </div>
+                <button id="add-spatial-track" type="button">
+                    + Add Audio Source
+                </button>
+            </section>
+
+            <section class="spatial-mixer">
+                <h3>Bus Mixer</h3>
+                <div id="spatial-bus-list">
+                    <!-- Audio Buses -->
+                </div>
+            </section>
+
+        </div>
+
+    </section>
+
+</div>
+
+    </main>
+<script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
 <script src="Js/audio-engine.js"></script>
 <script src="Js/studio.js"></script>
 </body>

@@ -20,6 +20,7 @@ this.objectURL = null;
         this.filters = [];
         this.analyser = null;
         this.masterGain = null;
+this.spatialPanner = null;
         this.isInitialized = false;
 
         this.bandFrequencies = [
@@ -78,7 +79,18 @@ getFrequencies(count) {
 
         this.context = new AudioContextClass();
 
-        this.masterGain = this.context.createGain();
+this.masterGain = this.context.createGain();
+
+this.spatialPanner = this.context.createPanner();
+
+this.spatialPanner.panningModel = "HRTF";
+this.spatialPanner.distanceModel = "inverse";
+this.spatialPanner.refDistance = 1;
+this.spatialPanner.maxDistance = 100;
+this.spatialPanner.rolloffFactor = 1;
+
+this.spatialPanner.connect(this.masterGain);
+
         this.analyser = this.context.createAnalyser();
 
         this.analyser.fftSize = 2048;
@@ -119,7 +131,7 @@ getFrequencies(count) {
             return filter;
         });
 
-        this.filters[this.filters.length - 1].connect(this.masterGain);
+this.filters[this.filters.length - 1].connect(this.spatialPanner);
     }
 setBandCount(count) {
     if (![10, 20, 30].includes(count)) {
@@ -193,6 +205,7 @@ connectAudioSource(audioElement) {
     this.source = this.context.createMediaElementSource(audioElement);
 
     this.source.connect(this.filters[0]);
+
     this.audioElement = audioElement;
 
     return true;
@@ -357,13 +370,13 @@ audioBufferToWav(audioBuffer) {
     const bitsPerSample = 16;
     const bytesPerSample = bitsPerSample / 8;
     const blockAlign = numberOfChannels * bytesPerSample;
-    const dataSize =
-        audioBuffer.length * numberOfChannels * bytesPerSample;
+        const dataSize =
+            audioBuffer.length * blockAlign;
 
     const buffer = new ArrayBuffer(44 + dataSize);
     const view = new DataView(buffer);
 
-    const writeString = (offset, text) => {
+   const writeString = (offset, text) => {
         for (let i = 0; i < text.length; i++) {
             view.setUint8(offset + i, text.charCodeAt(i));
         }
@@ -402,6 +415,237 @@ audioBufferToWav(audioBuffer) {
     }
 
     return new Blob([buffer], { type: "audio/wav" });
+}
+
+
+async exportMp3(file, gains, bitrate = 192) {
+    try {
+        if (!window.lamejs || !window.lamejs.Mp3Encoder) {
+            throw new Error("MP3 encoder library is not loaded.");
+        }
+
+        const decodedAudio = await this.decodeAudioFile(file);
+
+        const processedAudio = await this.renderOfflineEQ(
+            decodedAudio,
+            gains
+        );
+
+        const channels = processedAudio.numberOfChannels;
+
+        if (channels !== 1 && channels !== 2) {
+            throw new Error("MP3 export supports mono or stereo audio.");
+        }
+
+        const encoder = new window.lamejs.Mp3Encoder(
+            channels,
+            processedAudio.sampleRate,
+            bitrate
+        );
+
+        const leftData = processedAudio.getChannelData(0);
+        const rightData = channels === 2
+            ? processedAudio.getChannelData(1)
+            : null;
+
+        const mp3Chunks = [];
+        const frameSize = 1152;
+
+        const convertToInt16 = (data, start, end) => {
+            const samples = new Int16Array(end - start);
+
+            for (let i = start; i < end; i++) {
+                const sample = Math.max(-1, Math.min(1, data[i]));
+
+                samples[i - start] = sample < 0
+                    ? sample * 32768
+                    : sample * 32767;
+            }
+
+            return samples;
+        };
+
+        for (let i = 0; i < processedAudio.length; i += frameSize) {
+            const end = Math.min(i + frameSize, processedAudio.length);
+
+            const left = convertToInt16(leftData, i, end);
+
+            const mp3Buffer = channels === 2
+                ? encoder.encodeBuffer(
+                    left,
+                    convertToInt16(rightData, i, end)
+                )
+                : encoder.encodeBuffer(left);
+
+            if (mp3Buffer.length > 0) {
+                mp3Chunks.push(new Uint8Array(mp3Buffer));
+            }
+        }
+
+        const finalBuffer = encoder.flush();
+
+        if (finalBuffer.length > 0) {
+            mp3Chunks.push(new Uint8Array(finalBuffer));
+        }
+
+        return new Blob(mp3Chunks, {
+            type: "audio/mpeg"
+        });
+
+    } catch (error) {
+        console.error("RawsoniEQ MP3 export failed:", error);
+        throw error;
+    }
+}
+
+
+async exportFlac(file, gains) {
+    try {
+        const { default: encode } = await import(
+            "https://esm.sh/@audio/encode@1.11.0"
+        );
+
+        const decodedAudio = await this.decodeAudioFile(file);
+
+        const processedAudio = await this.renderOfflineEQ(
+            decodedAudio,
+            gains
+        );
+
+        const flacBytes = await encode.flac(processedAudio, {
+            sampleRate: processedAudio.sampleRate,
+            bitDepth: 24,
+            compression: 5
+        });
+
+        return new Blob([flacBytes], {
+            type: "audio/flac"
+        });
+
+    } catch (error) {
+        console.error("RawsoniEQ FLAC export failed:", error);
+        throw error;
+    }
+}
+
+async exportSurround61(file, gains) {
+    try {
+        const decodedAudio = await this.decodeAudioFile(file);
+
+        const processedAudio = await this.renderOfflineEQ(
+            decodedAudio,
+            gains
+        );
+
+        const sampleRate = processedAudio.sampleRate;
+        const length = processedAudio.length;
+
+        const surroundContext = new OfflineAudioContext(
+            7,
+            length,
+            sampleRate
+        );
+
+        const output = surroundContext.createBuffer(
+            7,
+            length,
+            sampleRate
+        );
+
+        const left = processedAudio.getChannelData(0);
+        const right = processedAudio.numberOfChannels > 1
+            ? processedAudio.getChannelData(1)
+            : left;
+
+        const frontLeft = output.getChannelData(0);
+        const frontRight = output.getChannelData(1);
+        const center = output.getChannelData(2);
+        const lfe = output.getChannelData(3);
+        const surroundLeft = output.getChannelData(4);
+        const surroundRight = output.getChannelData(5);
+        const backCenter = output.getChannelData(6);
+
+        for (let i = 0; i < length; i++) {
+            const mid = (left[i] + right[i]) * 0.5;
+            const side = (left[i] - right[i]) * 0.5;
+
+            frontLeft[i] = left[i];
+            frontRight[i] = right[i];
+            center[i] = mid;
+
+            surroundLeft[i] = side * 0.5;
+            surroundRight[i] = -side * 0.5;
+            backCenter[i] = mid * 0.25;
+            lfe[i] = 0;
+        }
+
+        return this.audioBufferToWav(output);
+
+    } catch (error) {
+        console.error("RawsoniEQ 6.1 export failed:", error);
+        throw error;
+    }
+}
+
+
+async exportCinema61(file, gains) {
+    try {
+        const decodedAudio = await this.decodeAudioFile(file);
+
+        const processedAudio = await this.renderOfflineEQ(
+            decodedAudio,
+            gains
+        );
+
+        const length = processedAudio.length;
+
+       const cinemaContext = new OfflineAudioContext(
+    7,
+    length,
+    processedAudio.sampleRate
+);
+
+const output = cinemaContext.createBuffer(
+    7,
+    length,
+    processedAudio.sampleRate
+);
+
+        const left = processedAudio.getChannelData(0);
+        const right = processedAudio.numberOfChannels > 1
+            ? processedAudio.getChannelData(1)
+            : left;
+
+        const frontLeft = output.getChannelData(0);
+        const frontRight = output.getChannelData(1);
+        const center = output.getChannelData(2);
+        const lfe = output.getChannelData(3);
+        const surroundLeft = output.getChannelData(4);
+        const surroundRight = output.getChannelData(5);
+        const backCenter = output.getChannelData(6);
+
+        for (let i = 0; i < length; i++) {
+            const mid = (left[i] + right[i]) * 0.5;
+            const side = (left[i] - right[i]) * 0.5;
+
+            frontLeft[i] = left[i] * 0.85;
+            frontRight[i] = right[i] * 0.85;
+
+            center[i] = mid * 0.75;
+            lfe[i] = 0;
+
+            surroundLeft[i] = side * 0.65;
+            surroundRight[i] = -side * 0.65;
+
+            backCenter[i] = mid * 0.4;
+        }
+
+        return this.audioBufferToWav(output);
+
+    } catch (error) {
+        console.error("Cinema 6.1 Spatial export failed:", error);
+        throw error;
+    }
 }
 
 async exportWav(file, gains) {
@@ -453,7 +697,148 @@ async exportWav(file, gains) {
         };
     }
 
-    getStatus() {
+    audioBufferTo61Wav(audioBuffer) {
+        const numberOfChannels = 7;
+        const sampleRate = audioBuffer.sampleRate;
+        const bitsPerSample = 16;
+        const bytesPerSample = 2;
+
+        const blockAlign = numberOfChannels * bytesPerSample;
+
+const dataSize =
+    audioBuffer.length * blockAlign;
+
+                const headerSize = 68;
+        const buffer = new ArrayBuffer(headerSize + dataSize);
+        const view = new DataView(buffer);
+
+        const writeString = (offset, text) => {
+            for (let i = 0; i < text.length; i++) {
+                view.setUint8(offset + i, text.charCodeAt(i));
+            }
+        };
+
+        writeString(0, "RIFF");
+        view.setUint32(4, 60 + dataSize, true);
+        writeString(8, "WAVE");
+        writeString(12, "fmt ");
+        view.setUint32(16, 40, true);
+        view.setUint16(20, 0xFFFE, true);
+        view.setUint16(22, numberOfChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * blockAlign, true);
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, bitsPerSample, true);
+        view.setUint16(36, 22, true);
+        view.setUint16(38, bitsPerSample, true);
+        view.setUint32(40, 0x70F, true);
+
+        view.setUint32(44, 1, true);
+        view.setUint16(48, 0, true);
+        view.setUint16(50, 0x0010, true);
+
+        const subFormat = [
+            0x80, 0x00, 0x00, 0xAA,
+            0x00, 0x38, 0x9B, 0x71
+        ];
+
+        subFormat.forEach((byte, index) => {
+            view.setUint8(52 + index, byte);
+        });
+
+        writeString(60, "data");
+        view.setUint32(64, dataSize, true);
+        const outputChannels = Array.from(
+            { length: numberOfChannels },
+            () => new Float32Array(audioBuffer.length)
+        );
+        const inputChannels = audioBuffer.numberOfChannels;
+
+        if (![2, 6, 7].includes(inputChannels)) {
+            throw new Error(
+                "Unsupported input channel configuration: " +
+                inputChannels
+            );
+        }
+        const inputData = [];
+
+        for (let channel = 0; channel < inputChannels; channel++) {
+            inputData.push(audioBuffer.getChannelData(channel));
+        }
+        if (inputChannels === 2) {
+            const left = inputData[0];
+            const right = inputData[1];
+
+            for (let i = 0; i < audioBuffer.length; i++) {
+                outputChannels[0][i] = left[i];
+                outputChannels[1][i] = right[i];
+
+                outputChannels[2][i] =
+                    (left[i] + right[i]) * 0.353553;
+
+                outputChannels[3][i] = 0;
+
+                outputChannels[4][i] =
+                    (left[i] + right[i]) * 0.25;
+
+                outputChannels[5][i] = left[i] * 0.5;
+                outputChannels[6][i] = right[i] * 0.5;
+            }
+        }
+        else if (inputChannels === 6) {
+            const left = inputData[0];
+            const right = inputData[1];
+            const center = inputData[2];
+            const lfe = inputData[3];
+            const surroundLeft = inputData[4];
+            const surroundRight = inputData[5];
+
+            for (let i = 0; i < audioBuffer.length; i++) {
+                outputChannels[0][i] = left[i];
+                outputChannels[1][i] = right[i];
+                outputChannels[2][i] = center[i];
+                outputChannels[3][i] = lfe[i];
+
+                outputChannels[4][i] =
+                    (surroundLeft[i] + surroundRight[i]) * 0.5;
+
+                outputChannels[5][i] = surroundLeft[i];
+                outputChannels[6][i] = surroundRight[i];
+            }
+        }
+        else if (inputChannels === 7) {
+            for (let channel = 0; channel < 7; channel++) {
+                outputChannels[channel].set(inputData[channel]);
+            }
+        }
+const interleaved = new DataView(
+    new ArrayBuffer(dataSize)
+);
+
+let offset = 0;
+
+for (let i = 0; i < audioBuffer.length; i++) {
+    for (let channel = 0; channel < numberOfChannels; channel++) {
+        let sample = outputChannels[channel][i];
+
+        sample = Math.max(-1, Math.min(1, sample));
+
+        const intSample = sample < 0
+            ? sample * 0x8000
+            : sample * 0x7FFF;
+
+        interleaved.setInt16(offset, intSample, true);
+
+        offset += bytesPerSample;
+    }
+}
+return new Blob(
+    [buffer.slice(0, headerSize), interleaved.buffer],
+    { type: "audio/wav" }
+);
+}
+
+getStatus() {
         return {
             initialized: this.isInitialized,
             audioContextState: this.context

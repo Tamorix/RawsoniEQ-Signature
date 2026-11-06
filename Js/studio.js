@@ -77,6 +77,7 @@ async downloadWav() {
         });
 
         this.renderStudio();
+        this.renderSpatialPositioner();
     }
 
     renderStudio() {
@@ -153,7 +154,17 @@ async downloadWav() {
         <option value="wav">WAV — Lossless PCM</option>
         <option value="mp3">MP3 — Compressed</option>
         <option value="flac">FLAC — Lossless</option>
-        <option value="spatial">RawsoniEQ Spatial</option>
+        <option value="spatial">RawsoniEQ Spatial — Stereo</option>
+<option value="surround61">6.1 Surround — 7 Channel WAV</option>
+<option value="cinema61">6.1 Cinema Spatial — 7 Channel WAV</option>
+    </select>
+</label>
+
+<label class="mode-label" id="spatial-mode-container" style="display: none;">
+    Spatial Mode
+    <select id="spatial-mode">
+        <option value="3d">3D Spatial</option>
+        <option value="cinema">Cinema Spatial</option>
     </select>
 </label>
 
@@ -163,11 +174,23 @@ async downloadWav() {
             <p class="studio-message" id="studio-message" role="status">
                 Studio interface loaded. Audio processing connection pending.
             </p>
+<section class="spatial-studio" id="spatial-studio">
+    <header class="spatial-header">
+        <h2>RawsoniEQ Spatial Studio</h2>
+        <p>Position your sound in 3D space.</p>
+    </header>
+
+    <section class="spatial-positioner">
+        <h3>3D Sound Positioner</h3>
+        <div class="spatial-positioner-view" id="spatial-positioner"></div>
+    </section>
+</section>
         `;
 
-        this.bindInterface();
+                this.bindInterface();
         this.renderBands();
-        this.updatePlaybackStatus("Import an audio file to begin");
+        this.renderSpatialPositioner();
+        this.updatePlaybackStatus("Import an audio file to begin");s
     }
 
     bindInterface() {
@@ -235,13 +258,164 @@ async downloadWav() {
 
         document.getElementById("save-preset")
             .addEventListener("click", () => this.savePreset());
+const exportFormat = document.getElementById("export-format");
+const spatialModeContainer =
+    document.getElementById("spatial-mode-container");
+const spatialMode = document.getElementById("spatial-mode");
 
-     document.getElementById("export-wav")
-    .addEventListener("click", () => {
+spatialMode.addEventListener("change", () => {
+    console.log("Spatial mode selected:", spatialMode.value);
+});
+
+exportFormat.addEventListener("change", () => {
+    spatialModeContainer.style.display =
+        exportFormat.value === "spatial" ? "" : "none";
+});
+    
+document.getElementById("export-wav")
+    .addEventListener("click", async () => {
         const format = document.getElementById("export-format").value;
 
         if (format === "wav") {
             this.downloadWav();
+
+        } else if (format === "mp3") {
+            try {
+                if (!this.currentFile) {
+                    alert("Please load an audio file first.");
+                    return;
+                }
+
+                this.message("Preparing MP3 export...");
+
+               const mp3Blob = await this.engine.exportMp3(
+    this.currentFile,
+    [...this.gains],
+    320
+);
+
+                const downloadUrl = URL.createObjectURL(mp3Blob);
+                const link = document.createElement("a");
+
+                link.href = downloadUrl;
+                link.download = this.currentFile.name.replace(/\.[^/.]+$/, "") + "_RawsoniEQ.mp3";
+
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+
+                setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+
+                this.message("MP3 export completed successfully.");
+
+            } catch (error) {
+                console.error("MP3 export error:", error);
+                this.message("MP3 export failed: " + error.message);
+                alert("MP3 export failed: " + error.message);
+            }
+
+        } else if (format === "surround61") {
+            try {
+                if (!this.currentFile) {
+                    alert("Please load an audio file first.");
+                    return;
+                }
+
+                this.message("Preparing 6.1 Surround export...");
+
+                const surroundBlob = await this.engine.exportSurround61(
+                    this.currentFile,
+                    [...this.gains]
+                );
+
+                const downloadUrl = URL.createObjectURL(surroundBlob);
+                const link = document.createElement("a");
+
+                link.href = downloadUrl;
+                link.download = this.currentFile.name.replace(/\.[^/.]+$/, "") + "_RawsoniEQ_6.1_Surround.wav";
+
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+
+                setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+
+                this.message("6.1 Surround export completed successfully.");
+
+            } catch (error) {
+                console.error("6.1 Surround export error:", error);
+                this.message("6.1 Surround export failed: " + error.message);
+                alert("6.1 Surround export failed: " + error.message);
+            }
+
+        } else if (format === "cinema61") {
+            try {
+                if (!this.currentFile) {
+                    alert("Please load an audio file first.");
+                    return;
+                }
+
+                this.message("Preparing Cinema 6.1 Spatial export...");
+
+                const cinemaBlob = await this.engine.exportCinema61(
+                    this.currentFile,
+                    [...this.gains]
+                );
+
+                const downloadUrl = URL.createObjectURL(cinemaBlob);
+                const link = document.createElement("a");
+
+                link.href = downloadUrl;
+                link.download = this.currentFile.name.replace(/\.[^/.]+$/, "") + "_RawsoniEQ_Cinema_6.1.wav";
+
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+
+                setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+
+                this.message("Cinema 6.1 Spatial export completed successfully.");
+
+            } catch (error) {
+                console.error("Cinema 6.1 Spatial export error:", error);
+                this.message("Cinema 6.1 Spatial export failed: " + error.message);
+                alert("Cinema 6.1 Spatial export failed: " + error.message);
+            }
+
+               } else if (format === "flac") {
+            try {
+                if (!this.currentFile) {
+                    alert("Please load an audio file first.");
+                    return;
+                }
+
+                this.message("Preparing FLAC export...");
+
+                const flacBlob = await this.engine.exportFlac(
+                    this.currentFile,
+                    [...this.gains]
+                );
+
+                const downloadUrl = URL.createObjectURL(flacBlob);
+                const link = document.createElement("a");
+
+                link.href = downloadUrl;
+                link.download = this.currentFile.name.replace(/\.[^/.]+$/, "") + "_RawsoniEQ.flac";
+
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+
+                setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+
+                this.message("FLAC export completed successfully.");
+
+            } catch (error) {
+                console.error("FLAC export error:", error);
+                this.message("FLAC export failed: " + error.message);
+                alert("FLAC export failed: " + error.message);
+            }
+
         } else {
             this.message(
                 `${format.toUpperCase()} export is not implemented yet.`
@@ -251,6 +425,7 @@ async downloadWav() {
             );
         }
     });
+
 
 document.getElementById("exportWavBtn")
     ?.addEventListener("click", () => this.downloadWav());
@@ -453,6 +628,91 @@ async play() {
     updatePlaybackStatus(status) {
         const element = document.getElementById("playback-status");
         if (element) element.textContent = status;
+    }
+
+    renderSpatialPositioner() {
+        const container = document.getElementById("spatial-positioner");
+
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="positioner-stage">
+                <div class="positioner-grid"></div>
+
+                <div class="sound-source" id="sound-source">
+                    <span>●</span>
+                </div>
+            </div>
+
+            <div class="positioner-controls">
+                <label>
+                    X Position
+                    <input type="range" id="spatial-x"
+                        min="-10" max="10" value="0">
+                    <output id="spatial-x-value">0</output>
+                </label>
+
+                <label>
+                    Y Position
+                    <input type="range" id="spatial-y"
+                        min="-10" max="10" value="0">
+                    <output id="spatial-y-value">0</output>
+                </label>
+
+                <label>
+                    Z Position
+                    <input type="range" id="spatial-z"
+                        min="-10" max="10" value="0">
+                    <output id="spatial-z-value">0</output>
+                </label>
+            </div>
+        `;
+    
+        const source = document.getElementById("sound-source");
+
+        const sliders = {
+            x: document.getElementById("spatial-x"),
+            y: document.getElementById("spatial-y"),
+            z: document.getElementById("spatial-z")
+        };
+
+        const updatePosition = () => {
+            const x = Number(sliders.x.value);
+            const y = Number(sliders.y.value);
+            const z = Number(sliders.z.value);
+if (window.rawsoniStudio.engine.spatialPanner) {
+    window.rawsoniStudio.engine.spatialPanner.positionX.setValueAtTime(
+        x,
+        window.rawsoniStudio.engine.context.currentTime
+    );
+
+    window.rawsoniStudio.engine.spatialPanner.positionY.setValueAtTime(
+        y,
+        window.rawsoniStudio.engine.context.currentTime
+    );
+
+    window.rawsoniStudio.engine.spatialPanner.positionZ.setValueAtTime(
+        z,
+        window.rawsoniStudio.engine.context.currentTime
+    );
+}
+
+            source.style.left = `${50 + x * 4}%`;
+            source.style.top = `${50 - y * 4}%`;
+
+           source.style.transform =
+    `translate(-50%, -50%) translateZ(${z * 12}px) scale(${1 + z * 0.025})`;
+
+            document.getElementById("spatial-x-value").textContent = x;
+            document.getElementById("spatial-y-value").textContent = y;
+            document.getElementById("spatial-z-value").textContent = z;
+        };
+
+        Object.values(sliders).forEach(slider => {
+            slider.addEventListener("input", updatePosition);
+        });
+
+                updatePosition();
     }
 
     message(text) {
